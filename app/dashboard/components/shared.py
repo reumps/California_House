@@ -3,6 +3,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import base64
 from pathlib import Path
 import sys
 
@@ -26,21 +27,28 @@ def load_test_predictions():
     return None
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# LOGO
+# LOGO — displayed at the top of the main area
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 LOGO_PATH = Path(__file__).resolve().parent.parent / "assets" / "logo.jpg"
 
 def show_logo():
-    """Display logo in sidebar if file exists, otherwise show text brand."""
+    """Display logo centered at top of main area, or fallback text brand."""
     if LOGO_PATH.exists():
-        st.sidebar.image(str(LOGO_PATH), use_container_width=True)
+        logo_data = LOGO_PATH.read_bytes()
+        b64 = base64.b64encode(logo_data).decode()
+        ext = LOGO_PATH.suffix.lstrip(".")
+        st.markdown(f"""
+        <div style="text-align:center; padding: 0.5rem 0 0.25rem;">
+            <img src="data:image/{ext};base64,{b64}" style="height:70px;" alt="CaliPredict">
+        </div>
+        """, unsafe_allow_html=True)
     else:
-        st.sidebar.markdown("""
-        <div style="text-align:center; padding: 0.5rem 0 1rem;">
-            <span style="font-size:1.5rem; font-weight:800; color:#1E3A5F; letter-spacing:-0.02em;">
+        st.markdown("""
+        <div style="text-align:center; padding: 0.5rem 0 0.25rem;">
+            <span style="font-size:1.8rem; font-weight:800; color:#1E3A5F; letter-spacing:-0.02em;">
                 CALI<span style="color:#D4872E;">PREDICT</span>
             </span><br>
-            <span style="font-size:0.55rem; font-weight:500; color:#6B8299; letter-spacing:0.08em; text-transform:uppercase;">
+            <span style="font-size:0.6rem; font-weight:500; color:#6B8299; letter-spacing:0.08em; text-transform:uppercase;">
                 California Housing Analytics
             </span>
         </div>
@@ -99,7 +107,7 @@ PL = dict(
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# CSS — CALIPREDICT theme
+# CSS — CALIPREDICT theme — NO SIDEBAR
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 def inject_css():
     st.markdown("""
@@ -110,13 +118,49 @@ def inject_css():
         }
         #MainMenu, footer { visibility: hidden; }
 
-        /* ── Sidebar ── */
-        [data-testid="stSidebar"] {
-            background: linear-gradient(180deg, #FFFFFF 0%, #F5F7FA 100%);
-            border-right: 2px solid #D4872E;
+        /* ── Hide sidebar completely ── */
+        [data-testid="stSidebar"],
+        [data-testid="stSidebarNav"],
+        [data-testid="collapsedControl"] {
+            display: none !important;
         }
 
-        /* ── Metrics cards — navy border accent ── */
+        /* ── Tabs styling — CALIPREDICT brand ── */
+        .stTabs [data-baseweb="tab-list"] {
+            gap: 0;
+            background: linear-gradient(135deg, #1E3A5F 0%, #2C5282 100%);
+            border-radius: 10px;
+            padding: 4px;
+            margin-bottom: 1.5rem;
+        }
+        .stTabs [data-baseweb="tab"] {
+            color: rgba(255,255,255,0.7);
+            font-weight: 600;
+            font-size: 0.9rem;
+            padding: 0.6rem 1.5rem;
+            border-radius: 8px;
+            border: none;
+            background: transparent;
+            transition: all 0.2s ease;
+        }
+        .stTabs [data-baseweb="tab"]:hover {
+            color: white;
+            background: rgba(255,255,255,0.1);
+        }
+        .stTabs [aria-selected="true"] {
+            color: #1E3A5F !important;
+            background: white !important;
+            font-weight: 700;
+            box-shadow: 0 2px 8px rgba(30,58,95,0.15);
+        }
+        .stTabs [data-baseweb="tab-highlight"] {
+            display: none;
+        }
+        .stTabs [data-baseweb="tab-border"] {
+            display: none;
+        }
+
+        /* ── Metrics cards — orange border accent ── */
         [data-testid="stMetric"] {
             background: #FFFFFF;
             border: 1px solid #CBD5E0;
@@ -251,6 +295,15 @@ def inject_css():
         .stSlider [data-testid="stThumbValue"] {
             color: #D4872E;
             font-weight: 600;
+        }
+
+        /* ── Filter bar ── */
+        .filter-bar {
+            background: #F5F7FA;
+            border: 1px solid #CBD5E0;
+            border-radius: 10px;
+            padding: 1rem 1.25rem;
+            margin-bottom: 1rem;
         }
     </style>
     """, unsafe_allow_html=True)
