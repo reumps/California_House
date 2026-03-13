@@ -11,7 +11,7 @@ import plotly.graph_objects as go
 
 from components.shared import inject_css, load_data, LABELS, PL, C
 
-st.set_page_config(page_title="Exploration | California Housing", page_icon="📊", layout="wide")
+st.set_page_config(page_title="Exploration | California Housing", page_icon="📊", layout="wide", initial_sidebar_state="expanded")
 inject_css()
 
 df_raw = load_data()

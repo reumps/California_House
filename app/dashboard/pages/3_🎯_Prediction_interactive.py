@@ -16,7 +16,7 @@ from components.shared import (
 )
 from app.core.model_loader import predict
 
-st.set_page_config(page_title="Prediction | California Housing", page_icon="🎯", layout="wide")
+st.set_page_config(page_title="Prediction | California Housing", page_icon="🎯", layout="wide", initial_sidebar_state="expanded")
 inject_css()
 
 df_raw = load_data()
