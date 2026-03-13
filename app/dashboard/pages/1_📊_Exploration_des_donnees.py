@@ -95,9 +95,19 @@ fig_dist = px.histogram(
     color_discrete_sequence=[C["primary"]],
     labels=LABELS,
 )
+# Annotation sur le pic de censure a $500k
+cap_count = (df["MedHouseVal"] >= 4.95).sum()
+if cap_count > 50:
+    fig_dist.add_annotation(
+        x=5.0, y=cap_count * 0.85,
+        text=f"Censure a $500k<br>({cap_count} districts)",
+        showarrow=True, arrowhead=2, arrowcolor=C["danger"],
+        font=dict(size=11, color=C["danger"]),
+        ax=-60, ay=-40,
+    )
 fig_dist.update_layout(
     **PL,
-    title="Distribution du prix median des logements",
+    title="Les prix se concentrent entre $100k-$200k avec un plafond a $500k",
     xaxis_title="Prix median (x$100k)",
     yaxis_title="Nombre de districts",
     bargap=0.02,
@@ -178,13 +188,22 @@ fig_scatter = px.scatter(
     x="MedInc", y="MedHouseVal",
     color="HouseAge",
     color_continuous_scale="Viridis",
-    opacity=0.4,
+    opacity=0.5,
     labels=LABELS,
     hover_data={"Population": ":,.0f"},
+    trendline="ols",
+    trendline_color_override=C["danger"],
 )
+# Rendre la trendline plus visible
+for trace in fig_scatter.data:
+    if hasattr(trace, "mode") and trace.mode == "lines":
+        trace.line = dict(width=2.5, dash="dash")
+        trace.name = "Tendance OLS"
+        trace.showlegend = True
+
 fig_scatter.update_layout(
     **PL,
-    title="Prix median vs Revenu median (colore par age du logement)",
+    title="Le revenu median est le meilleur predicteur du prix (r = 0.69)",
     xaxis_title="Revenu median (x$10k)",
     yaxis_title="Prix median (x$100k)",
     height=450,
@@ -214,14 +233,14 @@ corr_labels = corr.rename(index=LABELS, columns=LABELS)
 fig_corr = px.imshow(
     corr_labels,
     text_auto=".2f",
-    color_continuous_scale=["#EF4444", "#FAFAFA", "#10B981"],
+    color_continuous_scale=["#2166AC", "#F7F7F7", "#B2182B"],  # bleu/rouge colorblind-friendly
     zmin=-1, zmax=1,
     aspect="auto",
 )
 fig_corr.update_layout(
     **PL,
     height=500,
-    title="Matrice de correlation",
+    title="Revenu et localisation : les deux axes de correlation avec le prix",
     coloraxis_colorbar=dict(title="r", thickness=12),
 )
 fig_corr.update_traces(textfont=dict(size=11))
@@ -242,17 +261,18 @@ df_box["Tranche_age"] = pd.cut(
     labels=["0-10 ans", "11-20 ans", "21-30 ans", "31-40 ans", "41-52 ans"],
 )
 
+age_palette = ["#C7D2FE", "#818CF8", "#6366F1", "#4F46E5", "#3730A3"]  # sequentiel indigo
 fig_box = px.box(
     df_box,
     x="Tranche_age",
     y="MedHouseVal",
     color="Tranche_age",
-    color_discrete_sequence=[C["primary"], C["secondary"], C["success"], C["warning"], C["danger"]],
+    color_discrete_sequence=age_palette,
     labels={"Tranche_age": "Tranche d'age", "MedHouseVal": "Prix median (x$100k)"},
 )
 fig_box.update_layout(
     **PL,
-    title="Distribution des prix par tranche d'age des logements",
+    title="Les logements anciens (41-52 ans) affichent des prix plus eleves",
     height=420,
     showlegend=False,
 )

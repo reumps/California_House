@@ -80,7 +80,7 @@ if test_preds is not None:
         ))
         fig_avp.update_layout(
             **PL,
-            title="Reel vs Predit",
+            title="Le modele predit bien sauf pour les prix > $400k",
             xaxis_title="Prix reel (x$100k)",
             yaxis_title="Prix predit (x$100k)",
             height=420,
@@ -97,7 +97,7 @@ if test_preds is not None:
         fig_res.add_vline(x=0, line_dash="dash", line_color=C["danger"], line_width=1.5)
         fig_res.update_layout(
             **PL,
-            title="Distribution des residus",
+            title="Les residus sont centres sur zero avec une queue a gauche",
             xaxis_title="Erreur (x$100k)",
             yaxis_title="Frequence",
             height=420,
@@ -129,7 +129,7 @@ fig_coef = px.bar(
 fig_coef.update_layout(
     **PL,
     height=400,
-    title="Coefficients standardises du modele (features de base)",
+    title="Le revenu median domine, la surpopulation fait baisser les prix",
     showlegend=True,
     legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
 )
@@ -148,15 +148,35 @@ if test_preds is not None:
         x=test_preds["predicted"], y=test_preds["residual"],
         mode="markers",
         marker=dict(size=3, color=C["secondary"], opacity=0.2),
+        name="Residus",
     ))
     fig_res_sc.add_hline(y=0, line_dash="dash", line_color=C["danger"], line_width=1.5)
+
+    # LOWESS smoother pour reveler le biais systematique
+    try:
+        from statsmodels.nonparametric.smoothers_lowess import lowess
+        sorted_preds = test_preds.sort_values("predicted")
+        smooth = lowess(
+            sorted_preds["residual"], sorted_preds["predicted"],
+            frac=0.15, it=3,
+        )
+        fig_res_sc.add_trace(go.Scatter(
+            x=smooth[:, 0], y=smooth[:, 1],
+            mode="lines",
+            line=dict(color=C["warning"], width=3),
+            name="Tendance LOWESS",
+        ))
+    except ImportError:
+        pass
+
     fig_res_sc.update_layout(
         **PL,
-        title="Residus vs valeurs predites — detection de patterns d'erreur",
+        title="Sous-estimation systematique au-dela de $300k (biais de censure)",
         xaxis_title="Prix predit (x$100k)",
         yaxis_title="Residu (reel - predit)",
         height=400,
-        showlegend=False,
+        showlegend=True,
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, x=0),
     )
     st.plotly_chart(fig_res_sc, width="stretch")
 
