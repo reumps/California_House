@@ -389,14 +389,14 @@ with tab_explore:
 
     cscale = "Purples" if map_color == "MedHouseVal" else "Blues" if map_color == "MedInc" else "YlOrRd"
 
-    fig_map = px.scatter_mapbox(
+    fig_map = px.scatter_map(
         df_map,
         lat="Latitude", lon="Longitude",
         color=map_color,
         size=np.clip(df_map["Population"], 80, 4000),
         size_max=9,
         color_continuous_scale=cscale,
-        mapbox_style="carto-positron",
+        map_style="carto-positron",
         zoom=4.8,
         center={"lat": 36.7, "lon": -119.5},
         height=520,
@@ -416,7 +416,7 @@ with tab_explore:
         ),
     )
     with map_col1:
-        st.plotly_chart(fig_map, use_container_width=True)
+        st.plotly_chart(fig_map, width="stretch")
 
     st.markdown("")
     st.markdown("---")
@@ -441,7 +441,7 @@ with tab_explore:
         coloraxis_colorbar=dict(title="r", thickness=12),
     )
     fig_corr.update_traces(textfont=dict(size=11))
-    st.plotly_chart(fig_corr, use_container_width=True)
+    st.plotly_chart(fig_corr, width="stretch")
 
     st.markdown("""
     <div class="info-box">
@@ -478,12 +478,12 @@ with tab_explore:
         height=380,
     )
     with dist_col1:
-        st.plotly_chart(fig_dist, use_container_width=True)
+        st.plotly_chart(fig_dist, width="stretch")
 
     with st.expander("Voir les statistiques detaillees"):
         st.dataframe(
             df.describe().round(2).rename(columns=LABELS),
-            use_container_width=True,
+            width="stretch",
         )
 
 
@@ -535,7 +535,7 @@ with tab_model:
                 showlegend=True,
                 legend=dict(orientation="h", yanchor="bottom", y=1.02, x=0),
             )
-            st.plotly_chart(fig_avp, use_container_width=True)
+            st.plotly_chart(fig_avp, width="stretch")
 
         # ── Residuals ──
         with pred_col2:
@@ -556,7 +556,7 @@ with tab_model:
                 height=420,
                 bargap=0.02,
             )
-            st.plotly_chart(fig_res, use_container_width=True)
+            st.plotly_chart(fig_res, width="stretch")
 
         st.markdown("")
 
@@ -579,7 +579,7 @@ with tab_model:
             height=380,
             showlegend=False,
         )
-        st.plotly_chart(fig_res_sc, use_container_width=True)
+        st.plotly_chart(fig_res_sc, width="stretch")
 
     st.markdown("---")
 
@@ -609,7 +609,7 @@ with tab_model:
         showlegend=True,
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
     )
-    st.plotly_chart(fig_coef, use_container_width=True)
+    st.plotly_chart(fig_coef, width="stretch")
 
     st.markdown("---")
 
@@ -707,13 +707,13 @@ with tab_predict:
         (df_raw["Longitude"].between(longitude - 0.3, longitude + 0.3))
     ].copy()
 
-    fig_pred_map = px.scatter_mapbox(
+    fig_pred_map = px.scatter_map(
         df_nearby if len(df_nearby) > 0 else df_raw.sample(500, random_state=42),
         lat="Latitude", lon="Longitude",
         color="MedHouseVal",
         size_max=8,
         color_continuous_scale="Purples",
-        mapbox_style="carto-positron",
+        map_style="carto-positron",
         zoom=10 if address and len(df_nearby) > 0 else 5,
         center={"lat": latitude, "lon": longitude},
         height=400,
@@ -721,7 +721,7 @@ with tab_predict:
         hover_data={"MedHouseVal": ":.2f", "MedInc": ":.2f", "Latitude": False, "Longitude": False},
     )
     # Add marker for selected location
-    fig_pred_map.add_trace(go.Scattermapbox(
+    fig_pred_map.add_trace(go.Scattermap(
         lat=[latitude], lon=[longitude],
         mode="markers+text",
         marker=dict(size=16, color="#EF4444", symbol="circle"),
@@ -736,7 +736,7 @@ with tab_predict:
         margin=dict(l=0, r=0, t=0, b=0),
         coloraxis_colorbar=dict(title=dict(text="Prix", font=dict(size=11)), thickness=12, len=0.4),
     )
-    st.plotly_chart(fig_pred_map, use_container_width=True)
+    st.plotly_chart(fig_pred_map, width="stretch")
 
     # Fallback: manual override
     with st.expander("Ajuster manuellement les coordonnees"):
@@ -749,7 +749,7 @@ with tab_predict:
     st.markdown("")
 
     # ── Predict ──
-    if st.button("Estimer le prix", type="primary", use_container_width=True):
+    if st.button("Estimer le prix", type="primary", width="stretch"):
 
         input_data = {
             "MedInc": med_inc,
@@ -806,7 +806,7 @@ with tab_predict:
             yaxis_title="Nombre de districts",
             bargap=0.02,
         )
-        st.plotly_chart(fig_pos, use_container_width=True)
+        st.plotly_chart(fig_pos, width="stretch")
 
 
 # ──────────────────────────────────────────────────────────
@@ -866,7 +866,7 @@ with tab_compare:
 
     st.markdown("---")
 
-    if st.button("Comparer", type="primary", use_container_width=True):
+    if st.button("Comparer", type="primary", width="stretch"):
         data_a = {"MedInc": a_inc, "HouseAge": float(a_age), "AveRooms": a_rooms, "AveBedrms": a_bedrms,
                    "Population": float(a_pop), "AveOccup": a_occup, "Latitude": lat_a, "Longitude": lon_a}
         data_b = {"MedInc": b_inc, "HouseAge": float(b_age), "AveRooms": b_rooms, "AveBedrms": b_bedrms,
@@ -908,20 +908,20 @@ with tab_compare:
         """, unsafe_allow_html=True)
 
         # Map with both points
-        fig_comp_map = px.scatter_mapbox(
+        fig_comp_map = px.scatter_map(
             df_raw.sample(min(3000, len(df_raw)), random_state=42),
             lat="Latitude", lon="Longitude",
             color="MedHouseVal",
             size_max=6,
             color_continuous_scale="Purples",
-            mapbox_style="carto-positron",
+            map_style="carto-positron",
             zoom=5,
             center={"lat": (lat_a + lat_b) / 2, "lon": (lon_a + lon_b) / 2},
             height=420,
             labels=LABELS,
             opacity=0.3,
         )
-        fig_comp_map.add_trace(go.Scattermapbox(
+        fig_comp_map.add_trace(go.Scattermap(
             lat=[lat_a, lat_b], lon=[lon_a, lon_b],
             mode="markers+text",
             marker=dict(size=[18, 18], color=[C["primary"], C["success"]]),
@@ -936,7 +936,7 @@ with tab_compare:
             showlegend=False,
             coloraxis_colorbar=dict(title=dict(text="Prix", font=dict(size=11)), thickness=12, len=0.35),
         )
-        st.plotly_chart(fig_comp_map, use_container_width=True)
+        st.plotly_chart(fig_comp_map, width="stretch")
 
         # Comparison table
         st.markdown('<div class="section-label">Detail de la comparaison</div>', unsafe_allow_html=True)
@@ -945,7 +945,7 @@ with tab_compare:
             label_a: [a_inc, a_age, a_rooms, a_bedrms, a_pop, a_occup, f"${price_a:,.0f}"],
             label_b: [b_inc, b_age, b_rooms, b_bedrms, b_pop, b_occup, f"${price_b:,.0f}"],
         })
-        st.dataframe(comp_df, use_container_width=True, hide_index=True)
+        st.dataframe(comp_df, width="stretch", hide_index=True)
 
 
 # ──────────────────────────────────────────────────────────
