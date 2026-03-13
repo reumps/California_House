@@ -13,5 +13,8 @@ pandas>=2.0.0
 streamlit>=1.28.0
 plotly>=5.18.0
 
+# Geocoding
+geopy>=2.4.0
+
 # Utils
 python-dotenv>=1.0.0

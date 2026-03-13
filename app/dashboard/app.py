@@ -10,6 +10,8 @@ import plotly.express as px
 import plotly.graph_objects as go
 import sys
 from pathlib import Path
+from geopy.geocoders import Nominatim
+from geopy.exc import GeocoderTimedOut, GeocoderUnavailable
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT))
@@ -649,17 +651,72 @@ with tab_predict:
     st.markdown("---")
     st.markdown('<div class="section-label">Localisation du district</div>', unsafe_allow_html=True)
 
-    loc1, loc2 = st.columns(2)
-    with loc1:
-        latitude = st.slider("Latitude", 32.0, 42.0, 35.63, 0.01)
-    with loc2:
-        longitude = st.slider("Longitude", -125.0, -114.0, -119.57, 0.01)
+    address = st.text_input(
+        "Adresse en Californie",
+        placeholder="Ex: 123 Market Street, San Francisco, CA",
+        help="Tapez une adresse et cliquez sur 'Localiser' pour obtenir les coordonnees automatiquement.",
+    )
+
+    # Default coordinates (center of California)
+    latitude = 35.63
+    longitude = -119.57
+
+    loc_btn_col, loc_status_col = st.columns([1, 3])
+    with loc_btn_col:
+        geocode_btn = st.button("Localiser", type="secondary", use_container_width=True)
+
+    if geocode_btn and address:
+        try:
+            geolocator = Nominatim(user_agent="california_housing_dashboard")
+            # Append California if not already mentioned
+            query = address if "CA" in address.upper() or "CALIFORNIA" in address.upper() else f"{address}, California, USA"
+            location = geolocator.geocode(query, timeout=10)
+            if location:
+                latitude = round(location.latitude, 4)
+                longitude = round(location.longitude, 4)
+                # Validate California bounds
+                if 32.0 <= latitude <= 42.0 and -125.0 <= longitude <= -114.0:
+                    st.session_state["geo_lat"] = latitude
+                    st.session_state["geo_lon"] = longitude
+                    st.session_state["geo_addr"] = location.address
+                else:
+                    with loc_status_col:
+                        st.warning("Cette adresse ne semble pas etre en Californie.")
+            else:
+                with loc_status_col:
+                    st.warning("Adresse introuvable. Verifiez l'orthographe.")
+        except (GeocoderTimedOut, GeocoderUnavailable):
+            with loc_status_col:
+                st.error("Service de geocodage temporairement indisponible. Reessayez.")
+
+    # Use stored coordinates if available
+    if "geo_lat" in st.session_state:
+        latitude = st.session_state["geo_lat"]
+        longitude = st.session_state["geo_lon"]
+
+    # Show resolved address and coordinates
+    if "geo_addr" in st.session_state:
+        st.markdown(f"""
+        <div style="background:#F0F0FF; border:1px solid #E0E0F0; border-radius:10px; padding:0.75rem 1rem; margin:0.5rem 0; font-size:0.85rem; color:#4F46E5;">
+            <strong>Adresse resolue :</strong> {st.session_state['geo_addr']}<br>
+            <strong>Coordonnees :</strong> {latitude}, {longitude}
+        </div>
+        """, unsafe_allow_html=True)
 
     # Mini map
     st.map(
         pd.DataFrame({"lat": [latitude], "lon": [longitude]}),
-        zoom=5, use_container_width=True,
+        zoom=8 if "geo_lat" in st.session_state else 5,
+        use_container_width=True,
     )
+
+    # Fallback: manual override
+    with st.expander("Ajuster manuellement les coordonnees"):
+        manual_col1, manual_col2 = st.columns(2)
+        with manual_col1:
+            latitude = st.number_input("Latitude", min_value=32.0, max_value=42.0, value=latitude, step=0.01, format="%.4f")
+        with manual_col2:
+            longitude = st.number_input("Longitude", min_value=-125.0, max_value=-114.0, value=longitude, step=0.01, format="%.4f")
 
     st.markdown("")
 
