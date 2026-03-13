@@ -1,6 +1,6 @@
 """
 California Housing — Dashboard SaaS
-Sidebar filters | Header metrics | 3 Tabs (Analyse, Modele, Prediction)
+Sidebar filters | Header metrics | 5 Tabs
 """
 
 import streamlit as st
@@ -17,6 +17,25 @@ ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT))
 
 from app.core.model_loader import predict, load_artifacts
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# GEOCODING (cached)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+@st.cache_data(ttl=3600, show_spinner=False)
+def geocode_address(address: str):
+    """Geocode an address — cached 1h to avoid repeat API calls."""
+    geolocator = Nominatim(user_agent="california_housing_dashboard")
+    query = address if "CA" in address.upper() or "CALIFORNIA" in address.upper() else f"{address}, California, USA"
+    try:
+        location = geolocator.geocode(query, timeout=10)
+        if location and 32.0 <= location.latitude <= 42.0 and -125.0 <= location.longitude <= -114.0:
+            return {"lat": round(location.latitude, 4), "lon": round(location.longitude, 4), "addr": location.address}
+        elif location:
+            return {"error": "not_california"}
+        return {"error": "not_found"}
+    except (GeocoderTimedOut, GeocoderUnavailable):
+        return {"error": "timeout"}
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # CONFIG
@@ -337,10 +356,12 @@ st.markdown("")
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # TABS
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-tab_explore, tab_model, tab_predict = st.tabs([
+tab_explore, tab_model, tab_predict, tab_compare, tab_about = st.tabs([
     "Analyse exploratoire",
     "Performance du modele",
     "Predire un prix",
+    "Comparer deux districts",
+    "A propos",
 ])
 
 
@@ -654,69 +675,76 @@ with tab_predict:
     address = st.text_input(
         "Adresse en Californie",
         placeholder="Ex: 123 Market Street, San Francisco, CA",
-        help="Tapez une adresse et cliquez sur 'Localiser' pour obtenir les coordonnees automatiquement.",
+        help="Tapez une adresse et appuyez sur Entree pour localiser automatiquement.",
+        key="predict_address",
     )
 
-    # Default coordinates (center of California)
+    # Default coordinates
     latitude = 35.63
     longitude = -119.57
 
-    loc_btn_col, loc_status_col = st.columns([1, 3])
-    with loc_btn_col:
-        geocode_btn = st.button("Localiser", type="secondary", use_container_width=True)
+    if address:
+        result = geocode_address(address)
+        if "error" not in result:
+            latitude = result["lat"]
+            longitude = result["lon"]
+            st.markdown(f"""
+            <div style="background:#F0F0FF; border:1px solid #E0E0F0; border-radius:10px; padding:0.75rem 1rem; margin:0.5rem 0; font-size:0.85rem; color:#4F46E5;">
+                <strong>Adresse resolue :</strong> {result['addr']}<br>
+                <strong>Coordonnees :</strong> {latitude}, {longitude}
+            </div>
+            """, unsafe_allow_html=True)
+        elif result["error"] == "not_california":
+            st.warning("Cette adresse ne semble pas etre en Californie.")
+        elif result["error"] == "timeout":
+            st.error("Service de geocodage temporairement indisponible. Reessayez.")
+        else:
+            st.warning("Adresse introuvable. Verifiez l'orthographe.")
 
-    if geocode_btn and address:
-        try:
-            geolocator = Nominatim(user_agent="california_housing_dashboard")
-            # Append California if not already mentioned
-            query = address if "CA" in address.upper() or "CALIFORNIA" in address.upper() else f"{address}, California, USA"
-            location = geolocator.geocode(query, timeout=10)
-            if location:
-                latitude = round(location.latitude, 4)
-                longitude = round(location.longitude, 4)
-                # Validate California bounds
-                if 32.0 <= latitude <= 42.0 and -125.0 <= longitude <= -114.0:
-                    st.session_state["geo_lat"] = latitude
-                    st.session_state["geo_lon"] = longitude
-                    st.session_state["geo_addr"] = location.address
-                else:
-                    with loc_status_col:
-                        st.warning("Cette adresse ne semble pas etre en Californie.")
-            else:
-                with loc_status_col:
-                    st.warning("Adresse introuvable. Verifiez l'orthographe.")
-        except (GeocoderTimedOut, GeocoderUnavailable):
-            with loc_status_col:
-                st.error("Service de geocodage temporairement indisponible. Reessayez.")
+    # Scatter mapbox with nearby districts
+    df_nearby = df_raw[
+        (df_raw["Latitude"].between(latitude - 0.3, latitude + 0.3)) &
+        (df_raw["Longitude"].between(longitude - 0.3, longitude + 0.3))
+    ].copy()
 
-    # Use stored coordinates if available
-    if "geo_lat" in st.session_state:
-        latitude = st.session_state["geo_lat"]
-        longitude = st.session_state["geo_lon"]
-
-    # Show resolved address and coordinates
-    if "geo_addr" in st.session_state:
-        st.markdown(f"""
-        <div style="background:#F0F0FF; border:1px solid #E0E0F0; border-radius:10px; padding:0.75rem 1rem; margin:0.5rem 0; font-size:0.85rem; color:#4F46E5;">
-            <strong>Adresse resolue :</strong> {st.session_state['geo_addr']}<br>
-            <strong>Coordonnees :</strong> {latitude}, {longitude}
-        </div>
-        """, unsafe_allow_html=True)
-
-    # Mini map
-    st.map(
-        pd.DataFrame({"lat": [latitude], "lon": [longitude]}),
-        zoom=8 if "geo_lat" in st.session_state else 5,
-        use_container_width=True,
+    fig_pred_map = px.scatter_mapbox(
+        df_nearby if len(df_nearby) > 0 else df_raw.sample(500, random_state=42),
+        lat="Latitude", lon="Longitude",
+        color="MedHouseVal",
+        size_max=8,
+        color_continuous_scale="Purples",
+        mapbox_style="carto-positron",
+        zoom=10 if address and len(df_nearby) > 0 else 5,
+        center={"lat": latitude, "lon": longitude},
+        height=400,
+        labels=LABELS,
+        hover_data={"MedHouseVal": ":.2f", "MedInc": ":.2f", "Latitude": False, "Longitude": False},
     )
+    # Add marker for selected location
+    fig_pred_map.add_trace(go.Scattermapbox(
+        lat=[latitude], lon=[longitude],
+        mode="markers+text",
+        marker=dict(size=16, color="#EF4444", symbol="circle"),
+        text=["Votre district"],
+        textposition="top center",
+        textfont=dict(size=12, color="#EF4444", family="Inter"),
+        name="Votre district",
+        showlegend=False,
+    ))
+    fig_pred_map.update_layout(
+        **{k: v for k, v in PL.items() if k != "margin"},
+        margin=dict(l=0, r=0, t=0, b=0),
+        coloraxis_colorbar=dict(title=dict(text="Prix", font=dict(size=11)), thickness=12, len=0.4),
+    )
+    st.plotly_chart(fig_pred_map, use_container_width=True)
 
     # Fallback: manual override
     with st.expander("Ajuster manuellement les coordonnees"):
         manual_col1, manual_col2 = st.columns(2)
         with manual_col1:
-            latitude = st.number_input("Latitude", min_value=32.0, max_value=42.0, value=latitude, step=0.01, format="%.4f")
+            latitude = st.number_input("Latitude", min_value=32.0, max_value=42.0, value=latitude, step=0.01, format="%.4f", key="pred_lat")
         with manual_col2:
-            longitude = st.number_input("Longitude", min_value=-125.0, max_value=-114.0, value=longitude, step=0.01, format="%.4f")
+            longitude = st.number_input("Longitude", min_value=-125.0, max_value=-114.0, value=longitude, step=0.01, format="%.4f", key="pred_lon")
 
     st.markdown("")
 
@@ -753,3 +781,246 @@ with tab_predict:
         r1.metric("Valeur brute", f"{price:.3f} x$100k")
         r2.metric("Erreur moyenne (MAE)", f"${mae_dollars:,.0f}")
         r3.metric("Fiabilite du modele", f"{metrics['r2']*100:.0f}%")
+
+        # Distribution with prediction line
+        st.markdown("")
+        st.markdown('<div class="section-label">Position dans la distribution</div>', unsafe_allow_html=True)
+
+        fig_pos = px.histogram(
+            df_raw, x="MedHouseVal", nbins=80,
+            color_discrete_sequence=["#E0E7FF"],
+            labels={"MedHouseVal": "Prix median (x$100k)"},
+        )
+        fig_pos.add_vline(
+            x=price, line_dash="solid", line_color=C["primary"], line_width=3,
+            annotation_text=f"Votre estimation : ${price_dollars:,.0f}",
+            annotation_position="top",
+            annotation_font=dict(size=12, color=C["primary"], family="Inter"),
+        )
+        percentile = (df_raw["MedHouseVal"] < price).mean() * 100
+        fig_pos.update_layout(
+            **PL,
+            height=320,
+            title=f"Votre estimation se situe au {percentile:.0f}e percentile",
+            xaxis_title="Prix median (x$100k)",
+            yaxis_title="Nombre de districts",
+            bargap=0.02,
+        )
+        st.plotly_chart(fig_pos, use_container_width=True)
+
+
+# ──────────────────────────────────────────────────────────
+# TAB 4 : COMPARER DEUX DISTRICTS
+# ──────────────────────────────────────────────────────────
+with tab_compare:
+    st.markdown("")
+
+    st.markdown("""
+    <div class="info-box">
+        Comparez deux adresses en Californie : le modele estimera le prix pour chaque
+        district et vous pourrez visualiser les differences.
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("")
+
+    comp1, comp_spacer, comp2 = st.columns([5, 0.5, 5])
+
+    # ── District A ──
+    with comp1:
+        st.markdown('<div class="section-label">District A</div>', unsafe_allow_html=True)
+        addr_a = st.text_input("Adresse", placeholder="Ex: Venice Beach, Los Angeles", key="addr_a")
+        a_inc = st.number_input("Revenu median (x$10k)", 0.5, 15.0, 4.5, 0.1, format="%.2f", key="a_inc")
+        a_age = st.number_input("Age median logements", 1, 52, 25, 1, key="a_age")
+        a_rooms = st.number_input("Pieces (moy.)", 1.0, 15.0, 5.5, 0.1, format="%.2f", key="a_rooms")
+        a_bedrms = st.number_input("Chambres (moy.)", 0.3, 5.0, 1.1, 0.1, format="%.2f", key="a_bedrms")
+        a_pop = st.number_input("Population", 3, 35000, 1500, 50, key="a_pop")
+        a_occup = st.number_input("Occupants (moy.)", 0.5, 10.0, 3.0, 0.1, format="%.2f", key="a_occup")
+
+    # ── District B ──
+    with comp2:
+        st.markdown('<div class="section-label">District B</div>', unsafe_allow_html=True)
+        addr_b = st.text_input("Adresse", placeholder="Ex: Palo Alto, CA", key="addr_b")
+        b_inc = st.number_input("Revenu median (x$10k)", 0.5, 15.0, 8.0, 0.1, format="%.2f", key="b_inc")
+        b_age = st.number_input("Age median logements", 1, 52, 35, 1, key="b_age")
+        b_rooms = st.number_input("Pieces (moy.)", 1.0, 15.0, 6.5, 0.1, format="%.2f", key="b_rooms")
+        b_bedrms = st.number_input("Chambres (moy.)", 0.3, 5.0, 1.0, 0.1, format="%.2f", key="b_bedrms")
+        b_pop = st.number_input("Population", 3, 35000, 2000, 50, key="b_pop")
+        b_occup = st.number_input("Occupants (moy.)", 0.5, 10.0, 2.8, 0.1, format="%.2f", key="b_occup")
+
+    # Geocode both
+    lat_a, lon_a, label_a = 34.0, -118.5, "District A"
+    lat_b, lon_b, label_b = 37.4, -122.1, "District B"
+
+    if addr_a:
+        res_a = geocode_address(addr_a)
+        if "error" not in res_a:
+            lat_a, lon_a = res_a["lat"], res_a["lon"]
+            label_a = res_a["addr"].split(",")[0]
+
+    if addr_b:
+        res_b = geocode_address(addr_b)
+        if "error" not in res_b:
+            lat_b, lon_b = res_b["lat"], res_b["lon"]
+            label_b = res_b["addr"].split(",")[0]
+
+    st.markdown("---")
+
+    if st.button("Comparer", type="primary", use_container_width=True):
+        data_a = {"MedInc": a_inc, "HouseAge": float(a_age), "AveRooms": a_rooms, "AveBedrms": a_bedrms,
+                   "Population": float(a_pop), "AveOccup": a_occup, "Latitude": lat_a, "Longitude": lon_a}
+        data_b = {"MedInc": b_inc, "HouseAge": float(b_age), "AveRooms": b_rooms, "AveBedrms": b_bedrms,
+                   "Population": float(b_pop), "AveOccup": b_occup, "Latitude": lat_b, "Longitude": lon_b}
+
+        with st.spinner("Calcul en cours..."):
+            price_a = predict(data_a) * 100_000
+            price_b = predict(data_b) * 100_000
+            diff = price_b - price_a
+            diff_pct = (diff / price_a * 100) if price_a > 0 else 0
+
+        # Results side by side
+        res1, res_sp, res2 = st.columns([5, 0.5, 5])
+        with res1:
+            st.markdown(f"""
+            <div class="hero-result" style="background: linear-gradient(135deg, #EEF2FF 0%, #E0E7FF 100%); border-color: #A5B4FC;">
+                <div class="label">{label_a}</div>
+                <div class="price" style="font-size:2.5rem;">${price_a:,.0f}</div>
+            </div>
+            """, unsafe_allow_html=True)
+        with res2:
+            st.markdown(f"""
+            <div class="hero-result" style="background: linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%); border-color: #86EFAC;">
+                <div class="label">{label_b}</div>
+                <div class="price" style="font-size:2.5rem;">${price_b:,.0f}</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        # Difference
+        color_diff = C["success"] if diff > 0 else C["danger"]
+        sign = "+" if diff > 0 else ""
+        st.markdown(f"""
+        <div style="text-align:center; padding:1rem; margin:0.5rem 0;">
+            <span style="font-size:1.5rem; font-weight:700; color:{color_diff};">
+                {sign}${diff:,.0f} ({sign}{diff_pct:.1f}%)
+            </span>
+            <br><span style="font-size:0.85rem; color:#6B7280;">Difference B vs A</span>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Map with both points
+        fig_comp_map = px.scatter_mapbox(
+            df_raw.sample(min(3000, len(df_raw)), random_state=42),
+            lat="Latitude", lon="Longitude",
+            color="MedHouseVal",
+            size_max=6,
+            color_continuous_scale="Purples",
+            mapbox_style="carto-positron",
+            zoom=5,
+            center={"lat": (lat_a + lat_b) / 2, "lon": (lon_a + lon_b) / 2},
+            height=420,
+            labels=LABELS,
+            opacity=0.3,
+        )
+        fig_comp_map.add_trace(go.Scattermapbox(
+            lat=[lat_a, lat_b], lon=[lon_a, lon_b],
+            mode="markers+text",
+            marker=dict(size=[18, 18], color=[C["primary"], C["success"]]),
+            text=[f"A: ${price_a:,.0f}", f"B: ${price_b:,.0f}"],
+            textposition="top center",
+            textfont=dict(size=13, family="Inter"),
+            name="Districts compares",
+        ))
+        fig_comp_map.update_layout(
+            **{k: v for k, v in PL.items() if k != "margin"},
+            margin=dict(l=0, r=0, t=0, b=0),
+            showlegend=False,
+            coloraxis_colorbar=dict(title=dict(text="Prix", font=dict(size=11)), thickness=12, len=0.35),
+        )
+        st.plotly_chart(fig_comp_map, use_container_width=True)
+
+        # Comparison table
+        st.markdown('<div class="section-label">Detail de la comparaison</div>', unsafe_allow_html=True)
+        comp_df = pd.DataFrame({
+            "Caracteristique": ["Revenu median (x$10k)", "Age logements", "Pieces (moy.)", "Chambres (moy.)", "Population", "Occupants (moy.)", "Prix estime"],
+            label_a: [a_inc, a_age, a_rooms, a_bedrms, a_pop, a_occup, f"${price_a:,.0f}"],
+            label_b: [b_inc, b_age, b_rooms, b_bedrms, b_pop, b_occup, f"${price_b:,.0f}"],
+        })
+        st.dataframe(comp_df, use_container_width=True, hide_index=True)
+
+
+# ──────────────────────────────────────────────────────────
+# TAB 5 : A PROPOS
+# ──────────────────────────────────────────────────────────
+with tab_about:
+    st.markdown("")
+
+    st.markdown("""
+    <div class="section-label">Le projet</div>
+
+    Ce dashboard presente une analyse du marche immobilier californien basee sur les donnees
+    du **recensement americain de 1990**. L'objectif est d'estimer le prix median des logements
+    d'un district a partir de ses caracteristiques socio-economiques et geographiques.
+
+    ---
+
+    <div class="section-label">Donnees</div>
+
+    Le dataset **California Housing** contient **20 640 districts** decrits par 8 variables :
+    revenu median, age des logements, nombre de pieces et chambres (moyennes), population,
+    nombre d'occupants, latitude et longitude. La variable cible est le prix median des logements
+    en centaines de milliers de dollars.
+
+    **Limites importantes :**
+    - Les prix sont **plafonnes a $500 000** (valeurs censurees a 5.0) — le modele ne peut pas
+      predire au-dela de ce seuil
+    - Les donnees datent de **1990** — elles ne refletent pas le marche actuel
+    - Les variables sont des **moyennes par district**, pas des valeurs individuelles
+
+    ---
+
+    <div class="section-label">Modele</div>
+    """, unsafe_allow_html=True)
+
+    about1, about2 = st.columns(2)
+    with about1:
+        st.markdown("""
+        **Pipeline d'entrainement :**
+        1. Nettoyage des outliers (IQR x 3)
+        2. Feature engineering : BedroomRatio, IncomeLocation
+        3. Clustering geographique (K-Means, K=1000)
+        4. One-hot encoding des clusters
+        5. StandardScaler (ajuste sur le train uniquement)
+        6. Regression lineaire multiple (1 010 features)
+        """)
+    with about2:
+        st.markdown(f"""
+        **Performances sur le jeu de test :**
+        - **R²** = {metrics['r2']:.4f} ({metrics['r2']*100:.1f}% de variance expliquee)
+        - **MAE** = ${metrics['mae']*100_000:,.0f} (erreur moyenne)
+        - **RMSE** = {metrics['rmse']:.4f}
+
+        **Pourquoi la regression lineaire ?**
+        C'est un choix pedagogique : le modele reste interpretable
+        (coefficients lisibles) tout en atteignant un R² > 0.82
+        grace au feature engineering et au clustering.
+        """)
+
+    st.markdown("""
+    ---
+
+    <div class="section-label">Technologies</div>
+
+    - **Backend** : FastAPI (API REST pour les predictions)
+    - **Dashboard** : Streamlit + Plotly (visualisations interactives)
+    - **ML** : scikit-learn (regression, clustering, preprocessing)
+    - **Geocodage** : geopy + Nominatim (OpenStreetMap, gratuit)
+    - **Deploiement** : Streamlit Cloud
+
+    ---
+
+    <div class="section-label">Auteur</div>
+
+    Projet realise par **Mathis Ruiz** dans le cadre d'un projet de Machine Learning.
+
+    [Code source sur GitHub](https://github.com/reumps/California_House)
+    """, unsafe_allow_html=True)
