@@ -1,13 +1,13 @@
 # ========================
 # DATA & MODELS
 # ========================
-data/raw/*
 data/processed/*
 data/external/*
 !data/**/.gitkeep
 
-models/*
-!models/.gitkeep
+# models tracked for Streamlit Cloud deployment
+# models/*
+# !models/.gitkeep
 
 reports/figures/*
 !reports/figures/.gitkeep
