@@ -12,12 +12,13 @@ from geopy.geocoders import Nominatim
 from geopy.exc import GeocoderTimedOut, GeocoderUnavailable
 
 from components.shared import (
-    inject_css, load_data, load_artifacts, LABELS, PL, C,
+    inject_css, show_logo, load_data, load_artifacts, LABELS, PL, C,
 )
 from app.core.model_loader import predict
 
-st.set_page_config(page_title="Prediction | California Housing", page_icon="🎯", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="Prediction | CaliPredict", page_icon="🎯", layout="wide", initial_sidebar_state="expanded")
 inject_css()
+show_logo()
 
 df_raw = load_data()
 artifacts = load_artifacts()
@@ -92,7 +93,7 @@ if address:
         latitude = result["lat"]
         longitude = result["lon"]
         st.markdown(f"""
-        <div style="background:#F0F0FF; border:1px solid #E0E0F0; border-radius:10px; padding:0.75rem 1rem; margin:0.5rem 0; font-size:0.85rem; color:#4F46E5;">
+        <div style="background:#EBF0F7; border:1px solid #B0C4DB; border-left:4px solid #D4872E; border-radius:8px; padding:0.75rem 1rem; margin:0.5rem 0; font-size:0.85rem; color:#1E3A5F;">
             <strong>Adresse resolue :</strong> {result['addr']}<br>
             <strong>Coordonnees :</strong> {latitude}, {longitude}
         </div>
@@ -115,7 +116,7 @@ fig_pred_map = px.scatter_map(
     lat="Latitude", lon="Longitude",
     color="MedHouseVal",
     size_max=8,
-    color_continuous_scale="Purples",
+    color_continuous_scale=[[0, "#EBF0F7"], [0.5, "#2C5282"], [1, "#1E3A5F"]],
     map_style="carto-positron",
     zoom=10 if address and len(df_nearby) > 0 else 5,
     center={"lat": latitude, "lon": longitude},
@@ -126,10 +127,10 @@ fig_pred_map = px.scatter_map(
 fig_pred_map.add_trace(go.Scattermap(
     lat=[latitude], lon=[longitude],
     mode="markers+text",
-    marker=dict(size=16, color="#EF4444", symbol="circle"),
+    marker=dict(size=16, color="#D4872E", symbol="circle"),
     text=["Votre district"],
     textposition="top center",
-    textfont=dict(size=12, color="#EF4444", family="Inter"),
+    textfont=dict(size=12, color="#D4872E", family="Inter"),
     name="Votre district",
     showlegend=False,
 ))
@@ -184,7 +185,7 @@ if st.button("Estimer le prix", type="primary"):
     # Position dans la distribution
     fig_pos = px.histogram(
         df_raw, x="MedHouseVal", nbins=80,
-        color_discrete_sequence=["#E0E7FF"],
+        color_discrete_sequence=["#CBD5E0"],
         labels={"MedHouseVal": "Prix median (x$100k)"},
     )
     fig_pos.add_vline(

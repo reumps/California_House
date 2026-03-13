@@ -10,12 +10,13 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 from components.shared import (
-    inject_css, load_data, load_test_predictions,
+    inject_css, show_logo, load_data, load_test_predictions,
     load_artifacts, LABELS, PL, C,
 )
 
-st.set_page_config(page_title="Analyse | California Housing", page_icon="🔬", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="Analyse | CaliPredict", page_icon="🔬", layout="wide", initial_sidebar_state="expanded")
 inject_css()
+show_logo()
 
 df_raw = load_data()
 test_preds = load_test_predictions()

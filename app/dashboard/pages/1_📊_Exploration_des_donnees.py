@@ -9,10 +9,11 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 
-from components.shared import inject_css, load_data, LABELS, PL, C
+from components.shared import inject_css, show_logo, load_data, LABELS, PL, C
 
-st.set_page_config(page_title="Exploration | California Housing", page_icon="📊", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="Exploration | CaliPredict", page_icon="📊", layout="wide", initial_sidebar_state="expanded")
 inject_css()
+show_logo()
 
 df_raw = load_data()
 
@@ -142,7 +143,12 @@ with map_col2:
     map_n = st.slider("Points", 2000, min(len(df), 15000), min(6000, len(df)), 500)
 
 df_map = df.sample(n=min(map_n, len(df)), random_state=42)
-cscale = "Purples" if map_color == "MedHouseVal" else "Blues" if map_color == "MedInc" else "YlOrRd"
+if map_color == "MedHouseVal":
+    cscale = [[0, "#EBF0F7"], [0.5, "#2C5282"], [1, "#1E3A5F"]]
+elif map_color == "MedInc":
+    cscale = [[0, "#FEF3E2"], [0.5, "#F0A04B"], [1, "#D4872E"]]
+else:
+    cscale = "YlOrRd"
 
 fig_map = px.scatter_map(
     df_map,
@@ -261,7 +267,7 @@ df_box["Tranche_age"] = pd.cut(
     labels=["0-10 ans", "11-20 ans", "21-30 ans", "31-40 ans", "41-52 ans"],
 )
 
-age_palette = ["#C7D2FE", "#818CF8", "#6366F1", "#4F46E5", "#3730A3"]  # sequentiel indigo
+age_palette = ["#CBD5E0", "#7A8FA6", "#2C5282", "#1E3A5F", "#152A43"]  # sequentiel navy
 fig_box = px.box(
     df_box,
     x="Tranche_age",

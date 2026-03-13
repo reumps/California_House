@@ -4,18 +4,19 @@ California Housing — Page Accueil
 
 import streamlit as st
 import pandas as pd
-from components.shared import inject_css, load_data, load_artifacts, LABELS, COLUMN_DESCRIPTIONS
+from components.shared import inject_css, show_logo, load_data, load_artifacts, LABELS, COLUMN_DESCRIPTIONS
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # CONFIG
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 st.set_page_config(
-    page_title="California Housing",
+    page_title="CaliPredict",
     page_icon="🏠",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 inject_css()
+show_logo()
 
 df = load_data()
 artifacts = load_artifacts()
@@ -27,8 +28,8 @@ metrics = artifacts["metrics"]
 with st.sidebar:
     st.markdown("---")
     st.markdown(f"""
-    <div style="font-size:0.72rem; color:#D1D5DB; line-height:1.6;">
-        <strong>{len(df):,}</strong> districts au total<br>
+    <div style="font-size:0.72rem; color:#7A8FA6; line-height:1.6;">
+        <strong style="color:#1E3A5F;">{len(df):,}</strong> districts au total<br>
         Source : Recensement US 1990<br>
         Modele : Regression lineaire + K-Means<br>
         Auteur : Mathis Ruiz
@@ -38,8 +39,8 @@ with st.sidebar:
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # TITRE & PRESENTATION
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-st.markdown("# 🏠 California Housing")
-st.markdown("### Analyse et prediction du marche immobilier californien")
+st.markdown("# 🏠 CaliPredict")
+st.markdown("### California Housing Analytics & AI Predictions")
 
 st.markdown("")
 
