@@ -1,0 +1,76 @@
+# ========================
+# DATA & MODELS
+# ========================
+data/raw/*
+data/processed/*
+data/external/*
+!data/**/.gitkeep
+
+models/*
+!models/.gitkeep
+
+reports/figures/*
+!reports/figures/.gitkeep
+
+# ========================
+# PYTHON
+# ========================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+.eggs/
+dist/
+build/
+*.egg
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+htmlcov/
+.coverage
+coverage.xml
+
+# ========================
+# ENVIRONNEMENTS
+# ========================
+.env
+.env.local
+.env.production
+.venv/
+venv/
+env/
+
+# ========================
+# JUPYTER
+# ========================
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# ========================
+# DOCKER
+# ========================
+*.log
+docker-compose.override.yml
+
+# ========================
+# IDE
+# ========================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ========================
+# OS
+# ========================
+.DS_Store
+Thumbs.db
+
+# ========================
+# SECRETS & CONFIGS
+# ========================
+configs/prod/*.secret.*
+*.pem
+*.key
