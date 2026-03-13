@@ -1,0 +1,697 @@
+"""
+California Housing — Dashboard SaaS
+Sidebar filters | Header metrics | 3 Tabs (Analyse, Modele, Prediction)
+"""
+
+import streamlit as st
+import numpy as np
+import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent.parent
+sys.path.insert(0, str(ROOT))
+
+from app.core.model_loader import predict, load_artifacts
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# CONFIG
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+st.set_page_config(
+    page_title="California Housing",
+    page_icon="",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# CSS — SaaS Dashboard Theme
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+st.markdown("""
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+    /* ── Base ── */
+    html, body, [class*="css"] {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+    #MainMenu, footer, header { visibility: hidden; }
+
+    /* ── Sidebar ── */
+    [data-testid="stSidebar"] {
+        background: #FFFFFF;
+        border-right: 1px solid #E5E7EB;
+    }
+
+    /* ── Metric cards ── */
+    [data-testid="stMetric"] {
+        background: #FFFFFF;
+        border: 1px solid #E5E7EB;
+        border-radius: 14px;
+        padding: 1.25rem 1.5rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.02);
+        transition: box-shadow 0.2s ease;
+    }
+    [data-testid="stMetric"]:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+    }
+    [data-testid="stMetricLabel"] {
+        font-size: 0.78rem;
+        font-weight: 500;
+        color: #6B7280;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+    [data-testid="stMetricValue"] {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: #111827;
+    }
+
+    /* ── Plotly containers ── */
+    [data-testid="stPlotlyChart"] > div {
+        border: 1px solid #E5E7EB;
+        border-radius: 14px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        overflow: hidden;
+        background: #FFFFFF;
+    }
+
+    /* ── Tabs ── */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 0;
+        background: #F9FAFB;
+        border-radius: 10px;
+        padding: 4px;
+        border: 1px solid #E5E7EB;
+    }
+    .stTabs [data-baseweb="tab"] {
+        border-radius: 8px;
+        padding: 0.6rem 1.5rem;
+        font-weight: 500;
+        font-size: 0.88rem;
+    }
+    .stTabs [aria-selected="true"] {
+        background: #FFFFFF !important;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+
+    /* ── Expander ── */
+    [data-testid="stExpander"] {
+        border: 1px solid #E5E7EB;
+        border-radius: 12px;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+    }
+
+    /* ── Custom classes ── */
+    .sidebar-header {
+        padding: 1.25rem 0.75rem 0.75rem;
+    }
+    .sidebar-header h2 {
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: #111827;
+        margin: 0 0 2px 0;
+    }
+    .sidebar-header p {
+        font-size: 0.78rem;
+        color: #9CA3AF;
+        margin: 0;
+    }
+    .sidebar-section {
+        font-size: 0.65rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #9CA3AF;
+        padding: 1rem 0.75rem 0.25rem;
+    }
+    .sidebar-footer {
+        padding: 0.75rem;
+        margin-top: 1rem;
+        border-top: 1px solid #F3F4F6;
+        font-size: 0.72rem;
+        color: #D1D5DB;
+        line-height: 1.6;
+    }
+
+    .section-label {
+        font-size: 0.68rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.07em;
+        color: #9CA3AF;
+        margin-bottom: 0.5rem;
+    }
+
+    hr { border-color: #F3F4F6 !important; }
+
+    /* ── Hero result card ── */
+    .hero-result {
+        text-align: center;
+        padding: 2.5rem 2rem;
+        background: linear-gradient(135deg, #EEF2FF 0%, #F0FDF4 50%, #FFF7ED 100%);
+        border: 1px solid #C7D2FE;
+        border-radius: 16px;
+        box-shadow: 0 4px 16px rgba(99,102,241,0.08);
+        margin: 1rem 0 1.5rem;
+    }
+    .hero-result .label {
+        font-size: 0.85rem;
+        font-weight: 500;
+        color: #6B7280;
+        margin-bottom: 0.25rem;
+    }
+    .hero-result .price {
+        font-size: 3.25rem;
+        font-weight: 800;
+        color: #111827;
+        letter-spacing: -0.02em;
+        margin: 0.25rem 0;
+    }
+    .hero-result .margin {
+        font-size: 0.85rem;
+        color: #6B7280;
+        margin-top: 0.5rem;
+    }
+    .hero-result .margin span {
+        background: #F3F4F6;
+        padding: 0.2rem 0.6rem;
+        border-radius: 6px;
+        font-weight: 500;
+    }
+
+    /* ── Pipeline steps ── */
+    .step-row {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.75rem;
+        padding: 0.85rem 0;
+        border-bottom: 1px solid #F3F4F6;
+    }
+    .step-row:last-child { border-bottom: none; }
+    .step-badge {
+        background: #4F46E5;
+        color: white;
+        width: 26px; height: 26px;
+        border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 0.72rem; font-weight: 700; flex-shrink: 0;
+    }
+    .step-content {
+        font-size: 0.88rem;
+        color: #4B5563;
+        line-height: 1.5;
+    }
+    .step-content strong { color: #111827; }
+
+    /* ── Info box ── */
+    .info-box {
+        background: #F0F9FF;
+        border: 1px solid #BAE6FD;
+        border-radius: 10px;
+        padding: 0.75rem 1rem;
+        font-size: 0.85rem;
+        color: #0C4A6E;
+        margin: 1rem 0;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# DATA
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+@st.cache_data
+def load_data():
+    return pd.read_csv(ROOT / "data" / "raw" / "california_housing.csv")
+
+@st.cache_data
+def load_test_predictions():
+    path = ROOT / "models" / "test_predictions.csv"
+    if path.exists():
+        return pd.read_csv(path)
+    return None
+
+df_raw = load_data()
+test_preds = load_test_predictions()
+artifacts = load_artifacts()
+metrics = artifacts["metrics"]
+
+LABELS = {
+    "MedInc": "Revenu median",
+    "HouseAge": "Age du logement",
+    "AveRooms": "Pieces (moy.)",
+    "AveBedrms": "Chambres (moy.)",
+    "Population": "Population",
+    "AveOccup": "Occupants (moy.)",
+    "Latitude": "Latitude",
+    "Longitude": "Longitude",
+    "MedHouseVal": "Prix median",
+}
+
+# Plotly shared layout
+PL = dict(
+    font=dict(family="Inter, -apple-system, sans-serif", color="#374151", size=12),
+    paper_bgcolor="white",
+    plot_bgcolor="white",
+    margin=dict(l=48, r=24, t=48, b=40),
+    title_font=dict(size=14, color="#374151", family="Inter, sans-serif"),
+    xaxis=dict(gridcolor="#F3F4F6", zeroline=False, linecolor="#E5E7EB"),
+    yaxis=dict(gridcolor="#F3F4F6", zeroline=False, linecolor="#E5E7EB"),
+)
+
+C = {
+    "primary": "#4F46E5",     # indigo
+    "secondary": "#0EA5E9",   # sky
+    "success": "#10B981",     # emerald
+    "danger": "#EF4444",      # red
+    "warning": "#F59E0B",     # amber
+    "muted": "#9CA3AF",       # gray
+}
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# SIDEBAR — Filtres globaux + description
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+with st.sidebar:
+    st.markdown("""
+    <div class="sidebar-header">
+        <h2>California Housing</h2>
+        <p>Analyse et prediction immobiliere</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown('<div class="sidebar-section">Filtres globaux</div>', unsafe_allow_html=True)
+
+    price_range = st.slider(
+        "Tranche de prix (x$100k)",
+        float(df_raw["MedHouseVal"].min()),
+        float(df_raw["MedHouseVal"].max()),
+        (0.15, 5.0),
+        step=0.05,
+    )
+
+    income_range = st.slider(
+        "Revenu median (x$10k)",
+        float(df_raw["MedInc"].min()),
+        float(df_raw["MedInc"].max()),
+        (0.5, 15.0),
+        step=0.1,
+    )
+
+    # Apply filters
+    df = df_raw[
+        (df_raw["MedHouseVal"] >= price_range[0]) &
+        (df_raw["MedHouseVal"] <= price_range[1]) &
+        (df_raw["MedInc"] >= income_range[0]) &
+        (df_raw["MedInc"] <= income_range[1])
+    ].copy()
+
+    st.markdown("---")
+    st.markdown(f"""
+    <div class="sidebar-footer">
+        <strong>{len(df):,}</strong> districts affiches / {len(df_raw):,}<br>
+        Source : Recensement US 1990<br>
+        Modele : Regression lineaire + K-Means
+    </div>
+    """, unsafe_allow_html=True)
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# HEADER — Metric cards
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+h1, h2, h3, h4 = st.columns(4)
+h1.metric("Prix moyen", f"${df['MedHouseVal'].mean() * 100_000:,.0f}")
+h2.metric("Revenu median", f"${df['MedInc'].mean() * 10_000:,.0f}")
+h3.metric("Districts analyses", f"{len(df):,}")
+h4.metric("Precision du modele", f"{metrics['r2']*100:.0f}%")
+
+st.markdown("")
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# TABS
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+tab_explore, tab_model, tab_predict = st.tabs([
+    "Analyse exploratoire",
+    "Performance du modele",
+    "Predire un prix",
+])
+
+
+# ──────────────────────────────────────────────────────────
+# TAB 1 : ANALYSE EXPLORATOIRE
+# ──────────────────────────────────────────────────────────
+with tab_explore:
+    st.markdown("")
+
+    # ── Carte ──
+    st.markdown('<div class="section-label">Carte geographique</div>', unsafe_allow_html=True)
+
+    map_col1, map_col2 = st.columns([4, 1])
+
+    with map_col2:
+        map_color = st.selectbox(
+            "Colorer par",
+            ["MedHouseVal", "MedInc", "HouseAge", "Population"],
+            format_func=lambda x: LABELS.get(x, x),
+            key="map_color",
+        )
+        map_n = st.slider("Points affiches", 2000, min(len(df), 15000), min(6000, len(df)), 500, key="map_n")
+
+    df_map = df.sample(n=min(map_n, len(df)), random_state=42)
+
+    cscale = "Purples" if map_color == "MedHouseVal" else "Blues" if map_color == "MedInc" else "YlOrRd"
+
+    fig_map = px.scatter_mapbox(
+        df_map,
+        lat="Latitude", lon="Longitude",
+        color=map_color,
+        size=np.clip(df_map["Population"], 80, 4000),
+        size_max=9,
+        color_continuous_scale=cscale,
+        mapbox_style="carto-positron",
+        zoom=4.8,
+        center={"lat": 36.7, "lon": -119.5},
+        height=520,
+        hover_data={
+            "MedHouseVal": ":.2f", "MedInc": ":.2f",
+            "HouseAge": ":.0f", "Population": ":,.0f",
+            "Latitude": False, "Longitude": False,
+        },
+        labels=LABELS,
+    )
+    fig_map.update_layout(
+        **{k: v for k, v in PL.items() if k != "margin"},
+        margin=dict(l=0, r=0, t=0, b=0),
+        coloraxis_colorbar=dict(
+            title=dict(text=LABELS.get(map_color, map_color), font=dict(size=11)),
+            thickness=14, len=0.45, yanchor="middle", y=0.5,
+        ),
+    )
+    with map_col1:
+        st.plotly_chart(fig_map, use_container_width=True)
+
+    st.markdown("")
+    st.markdown("---")
+
+    # ── Correlations ──
+    st.markdown('<div class="section-label">Correlations</div>', unsafe_allow_html=True)
+
+    corr = df.corr(numeric_only=True).round(3)
+    corr_labels = corr.rename(index=LABELS, columns=LABELS)
+
+    fig_corr = px.imshow(
+        corr_labels,
+        text_auto=".2f",
+        color_continuous_scale=["#EF4444", "#FAFAFA", "#10B981"],
+        zmin=-1, zmax=1,
+        aspect="auto",
+    )
+    fig_corr.update_layout(
+        **PL,
+        height=500,
+        title="",
+        coloraxis_colorbar=dict(title="r", thickness=12),
+    )
+    fig_corr.update_traces(textfont=dict(size=11))
+    st.plotly_chart(fig_corr, use_container_width=True)
+
+    st.markdown("""
+    <div class="info-box">
+        Le <strong>revenu median</strong> est le meilleur predicteur du prix (r = 0.69).
+        La <strong>latitude</strong> et la <strong>longitude</strong> capturent l'effet geographique.
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("")
+    st.markdown("---")
+
+    # ── Distribution ──
+    st.markdown('<div class="section-label">Distribution</div>', unsafe_allow_html=True)
+
+    dist_col1, dist_col2 = st.columns([3, 1])
+    with dist_col2:
+        dist_var = st.selectbox(
+            "Variable",
+            df.columns.tolist(),
+            format_func=lambda x: LABELS.get(x, x),
+            key="dist_var",
+        )
+
+    fig_dist = px.histogram(
+        df, x=dist_var, nbins=60,
+        color_discrete_sequence=[C["primary"]],
+    )
+    fig_dist.update_layout(
+        **PL,
+        title=LABELS.get(dist_var, dist_var),
+        xaxis_title="",
+        yaxis_title="Districts",
+        bargap=0.02,
+        height=380,
+    )
+    with dist_col1:
+        st.plotly_chart(fig_dist, use_container_width=True)
+
+    with st.expander("Voir les statistiques detaillees"):
+        st.dataframe(
+            df.describe().round(2).rename(columns=LABELS),
+            use_container_width=True,
+        )
+
+
+# ──────────────────────────────────────────────────────────
+# TAB 2 : PERFORMANCE DU MODELE
+# ──────────────────────────────────────────────────────────
+with tab_model:
+    st.markdown("")
+
+    # ── Metrics row ──
+    pm1, pm2, pm3, pm4 = st.columns(4)
+    pm1.metric("R²", f"{metrics['r2']:.4f}", help="Part de variance expliquee par le modele")
+    pm2.metric("MAE", f"${metrics['mae']*100_000:,.0f}", help="Erreur absolue moyenne en dollars")
+    pm3.metric("RMSE", f"{metrics['rmse']:.4f}", help="Racine de l'erreur quadratique moyenne")
+    pm4.metric("Clusters geographiques", "1 000", help="K-Means sur Latitude/Longitude")
+
+    st.markdown("")
+
+    if test_preds is not None:
+        pred_col1, pred_col2 = st.columns(2)
+
+        # ── Actual vs Predicted ──
+        with pred_col1:
+            st.markdown('<div class="section-label">Reel vs Predit</div>', unsafe_allow_html=True)
+
+            fig_avp = go.Figure()
+            fig_avp.add_trace(go.Scatter(
+                x=test_preds["actual"],
+                y=test_preds["predicted"],
+                mode="markers",
+                marker=dict(size=3, color=C["primary"], opacity=0.2),
+                name="Predictions",
+            ))
+            # Perfect line
+            line_min = min(test_preds["actual"].min(), test_preds["predicted"].min())
+            line_max = max(test_preds["actual"].max(), test_preds["predicted"].max())
+            fig_avp.add_trace(go.Scatter(
+                x=[line_min, line_max], y=[line_min, line_max],
+                mode="lines",
+                line=dict(color=C["danger"], width=1.5, dash="dash"),
+                name="Prediction parfaite",
+            ))
+            fig_avp.update_layout(
+                **PL,
+                title="Valeurs reelles vs predites",
+                xaxis_title="Prix reel (x$100k)",
+                yaxis_title="Prix predit (x$100k)",
+                height=420,
+                showlegend=True,
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, x=0),
+            )
+            st.plotly_chart(fig_avp, use_container_width=True)
+
+        # ── Residuals ──
+        with pred_col2:
+            st.markdown('<div class="section-label">Distribution des residus</div>', unsafe_allow_html=True)
+
+            fig_res = px.histogram(
+                test_preds, x="residual", nbins=60,
+                color_discrete_sequence=[C["success"]],
+            )
+            fig_res.add_vline(
+                x=0, line_dash="dash", line_color=C["danger"], line_width=1.5,
+            )
+            fig_res.update_layout(
+                **PL,
+                title="Residus (reel - predit)",
+                xaxis_title="Erreur (x$100k)",
+                yaxis_title="Frequence",
+                height=420,
+                bargap=0.02,
+            )
+            st.plotly_chart(fig_res, use_container_width=True)
+
+        st.markdown("")
+
+        # ── Residuals scatter ──
+        st.markdown('<div class="section-label">Residus vs valeurs predites</div>', unsafe_allow_html=True)
+
+        fig_res_sc = go.Figure()
+        fig_res_sc.add_trace(go.Scatter(
+            x=test_preds["predicted"],
+            y=test_preds["residual"],
+            mode="markers",
+            marker=dict(size=3, color=C["secondary"], opacity=0.2),
+        ))
+        fig_res_sc.add_hline(y=0, line_dash="dash", line_color=C["danger"], line_width=1.5)
+        fig_res_sc.update_layout(
+            **PL,
+            title="Analyse des residus",
+            xaxis_title="Prix predit (x$100k)",
+            yaxis_title="Residu",
+            height=380,
+            showlegend=False,
+        )
+        st.plotly_chart(fig_res_sc, use_container_width=True)
+
+    st.markdown("---")
+
+    # ── Coefficients ──
+    st.markdown('<div class="section-label">Importance des variables</div>', unsafe_allow_html=True)
+
+    model = artifacts["model"]
+    base_names = artifacts["feature_names_base"]
+    base_coefs = model.coef_[:len(base_names)]
+
+    coef_df = pd.DataFrame({
+        "Feature": [LABELS.get(n, n) for n in base_names],
+        "Coefficient": base_coefs,
+        "Impact": ["Positif" if c > 0 else "Negatif" for c in base_coefs],
+    }).sort_values("Coefficient", key=abs, ascending=True)
+
+    fig_coef = px.bar(
+        coef_df, x="Coefficient", y="Feature",
+        orientation="h",
+        color="Impact",
+        color_discrete_map={"Positif": C["primary"], "Negatif": C["danger"]},
+    )
+    fig_coef.update_layout(
+        **PL,
+        height=360,
+        title="Coefficients standardises (features de base)",
+        showlegend=True,
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+    )
+    st.plotly_chart(fig_coef, use_container_width=True)
+
+    st.markdown("---")
+
+    # ── Pipeline ──
+    st.markdown('<div class="section-label">Pipeline de prediction</div>', unsafe_allow_html=True)
+
+    steps = [
+        ("Nettoyage", "Retrait des outliers (IQR x 3) sur AveRooms, AveBedrms, AveOccup, Population"),
+        ("Feature engineering", "Creation de 2 nouvelles variables : BedroomRatio et IncomeLocation"),
+        ("Clustering", "K-Means (K=1000) sur les coordonnees geographiques, encode en one-hot"),
+        ("Standardisation", "StandardScaler ajuste uniquement sur le jeu d'entrainement"),
+        ("Prediction", "Regression lineaire multiple sur 1 010 features au total"),
+    ]
+
+    for i, (title, desc) in enumerate(steps, 1):
+        st.markdown(f"""
+        <div class="step-row">
+            <div class="step-badge">{i}</div>
+            <div class="step-content"><strong>{title}</strong> — {desc}</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+
+# ──────────────────────────────────────────────────────────
+# TAB 3 : PREDIRE UN PRIX
+# ──────────────────────────────────────────────────────────
+with tab_predict:
+    st.markdown("")
+
+    st.markdown("""
+    <div class="info-box">
+        Ajustez les caracteristiques d'un district californien pour obtenir une estimation
+        du prix median des logements. Le modele utilise 1 010 features incluant le clustering
+        geographique.
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("")
+
+    # ── Form ──
+    form_left, form_spacer, form_right = st.columns([5, 0.5, 5])
+
+    with form_left:
+        st.markdown('<div class="section-label">Economie & population</div>', unsafe_allow_html=True)
+        med_inc = st.slider(
+            "Revenu median du quartier (x$10k)",
+            0.5, 15.0, 3.87, 0.1,
+            help="Revenu median des menages en dizaines de milliers de dollars",
+        )
+        population = st.slider("Population du district", 3, 15000, 1425, 50)
+        ave_occup = st.slider("Occupants par logement (moyenne)", 0.5, 10.0, 3.07, 0.1)
+
+    with form_right:
+        st.markdown('<div class="section-label">Caracteristiques du logement</div>', unsafe_allow_html=True)
+        house_age = st.slider("Age median des logements (annees)", 1, 52, 29)
+        ave_rooms = st.slider("Nombre de pieces (moyenne)", 1.0, 15.0, 5.43, 0.1)
+        ave_bedrms = st.slider("Nombre de chambres (moyenne)", 0.3, 5.0, 1.10, 0.1)
+
+    st.markdown("---")
+    st.markdown('<div class="section-label">Localisation du district</div>', unsafe_allow_html=True)
+
+    loc1, loc2 = st.columns(2)
+    with loc1:
+        latitude = st.slider("Latitude", 32.0, 42.0, 35.63, 0.01)
+    with loc2:
+        longitude = st.slider("Longitude", -125.0, -114.0, -119.57, 0.01)
+
+    # Mini map
+    st.map(
+        pd.DataFrame({"lat": [latitude], "lon": [longitude]}),
+        zoom=5, use_container_width=True,
+    )
+
+    st.markdown("")
+
+    # ── Predict ──
+    if st.button("Estimer le prix", type="primary", use_container_width=True):
+
+        input_data = {
+            "MedInc": med_inc,
+            "HouseAge": float(house_age),
+            "AveRooms": ave_rooms,
+            "AveBedrms": ave_bedrms,
+            "Population": float(population),
+            "AveOccup": ave_occup,
+            "Latitude": latitude,
+            "Longitude": longitude,
+        }
+
+        with st.spinner("Calcul en cours..."):
+            price = predict(input_data)
+            price_dollars = price * 100_000
+            mae_dollars = metrics["mae"] * 100_000
+
+        # Hero result
+        st.markdown(f"""
+        <div class="hero-result">
+            <div class="label">Prix median estime</div>
+            <div class="price">${price_dollars:,.0f}</div>
+            <div class="margin">Marge d'erreur : <span>+/- ${mae_dollars:,.0f}</span></div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Detail row
+        r1, r2, r3 = st.columns(3)
+        r1.metric("Valeur brute", f"{price:.3f} x$100k")
+        r2.metric("Erreur moyenne (MAE)", f"${mae_dollars:,.0f}")
+        r3.metric("Fiabilite du modele", f"{metrics['r2']*100:.0f}%")
