@@ -4,7 +4,7 @@ Application web de prediction du prix immobilier en Californie, basee sur le dat
 
 **URL publique** : deploye sur [Streamlit Cloud](https://streamlit.io/cloud)
 
-**Auteur** : Mathis Ruiz — NEXA Digital School M2
+**Auteur** : Mathis Ruiz — NEXA -School of Technology M2
 
 ---
 
