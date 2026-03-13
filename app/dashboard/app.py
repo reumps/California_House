@@ -631,19 +631,20 @@ with tab_predict:
 
     with form_left:
         st.markdown('<div class="section-label">Economie & population</div>', unsafe_allow_html=True)
-        med_inc = st.slider(
+        med_inc = st.number_input(
             "Revenu median du quartier (x$10k)",
-            0.5, 15.0, 3.87, 0.1,
+            min_value=0.5, max_value=15.0, value=3.87, step=0.1,
+            format="%.2f",
             help="Revenu median des menages en dizaines de milliers de dollars",
         )
-        population = st.slider("Population du district", 3, 15000, 1425, 50)
-        ave_occup = st.slider("Occupants par logement (moyenne)", 0.5, 10.0, 3.07, 0.1)
+        population = st.number_input("Population du district", min_value=3, max_value=35000, value=1425, step=50)
+        ave_occup = st.number_input("Occupants par logement (moyenne)", min_value=0.5, max_value=10.0, value=3.07, step=0.1, format="%.2f")
 
     with form_right:
         st.markdown('<div class="section-label">Caracteristiques du logement</div>', unsafe_allow_html=True)
-        house_age = st.slider("Age median des logements (annees)", 1, 52, 29)
-        ave_rooms = st.slider("Nombre de pieces (moyenne)", 1.0, 15.0, 5.43, 0.1)
-        ave_bedrms = st.slider("Nombre de chambres (moyenne)", 0.3, 5.0, 1.10, 0.1)
+        house_age = st.number_input("Age median des logements (annees)", min_value=1, max_value=52, value=29, step=1)
+        ave_rooms = st.number_input("Nombre de pieces (moyenne)", min_value=1.0, max_value=15.0, value=5.43, step=0.1, format="%.2f")
+        ave_bedrms = st.number_input("Nombre de chambres (moyenne)", min_value=0.3, max_value=5.0, value=1.10, step=0.1, format="%.2f")
 
     st.markdown("---")
     st.markdown('<div class="section-label">Localisation du district</div>', unsafe_allow_html=True)
