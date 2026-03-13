@@ -83,8 +83,7 @@ def inject_css():
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
         }
         #MainMenu, footer, header { visibility: hidden; }
-        /* Hide default Streamlit multipage nav in sidebar */
-        [data-testid="stSidebarNav"] { display: none; }
+        /* Style default Streamlit multipage nav */
 
         [data-testid="stSidebar"] {
             background: #FFFFFF;

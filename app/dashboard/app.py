@@ -25,14 +25,6 @@ metrics = artifacts["metrics"]
 # SIDEBAR
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 with st.sidebar:
-    st.markdown("### 🏠 California Housing")
-    st.caption("Analyse et prediction immobiliere")
-    st.markdown("---")
-    st.markdown("**Navigation**")
-    st.page_link("app.py", label="Accueil", icon="🏠")
-    st.page_link("pages/1_Exploration.py", label="Exploration des donnees", icon="📊")
-    st.page_link("pages/2_Analyse.py", label="Analyse approfondie", icon="🔬")
-    st.page_link("pages/3_Prediction.py", label="Prediction interactive", icon="🎯")
     st.markdown("---")
     st.markdown(f"""
     <div style="font-size:0.72rem; color:#D1D5DB; line-height:1.6;">
@@ -83,9 +75,8 @@ k1.metric("Nombre de lignes", f"{len(df):,}")
 k2.metric("Nombre de colonnes", f"{len(df.columns)}")
 k3.metric("Valeurs manquantes", f"{df.isnull().sum().sum() / (len(df) * len(df.columns)) * 100:.1f}%")
 
-# Distribution variable cible
 above_cap = (df["MedHouseVal"] >= 5.0).mean() * 100
-k4.metric("Prix plafonnes (≥500k$)", f"{above_cap:.1f}%")
+k4.metric("Prix plafonnes (>=500k$)", f"{above_cap:.1f}%")
 
 st.markdown("")
 st.markdown("---")
