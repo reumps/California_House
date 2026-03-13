@@ -74,3 +74,8 @@ Thumbs.db
 configs/prod/*.secret.*
 *.pem
 *.key
+
+# ========================
+# STREAMLIT SECRETS
+# ========================
+.streamlit/secrets.toml

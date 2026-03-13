@@ -152,7 +152,7 @@ st.markdown("")
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # PREDICTION
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-if st.button("Estimer le prix", type="primary", use_container_width=True):
+if st.button("Estimer le prix", type="primary"):
 
     input_data = {
         "MedInc": med_inc, "HouseAge": float(house_age),

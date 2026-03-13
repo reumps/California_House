@@ -295,3 +295,19 @@ with st.expander("Voir les statistiques detaillees"):
         df.describe().round(2).rename(columns=LABELS),
         width="stretch",
     )
+
+st.markdown("")
+st.markdown("---")
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# TELECHARGEMENT CSV
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+st.markdown('<div class="section-label">Exporter les donnees filtrees</div>', unsafe_allow_html=True)
+
+csv_data = df.to_csv(index=False).encode("utf-8")
+st.download_button(
+    label=f"Telecharger les {len(df):,} districts filtres (CSV)",
+    data=csv_data,
+    file_name="california_housing_filtre.csv",
+    mime="text/csv",
+)
