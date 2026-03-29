@@ -284,4 +284,4 @@ Le projet est configure pour un deploiement direct sur Streamlit Cloud :
 
 ## Auteur
 
-**Mathis Ruiz** — NEXA Digital School M2
+**Mathis Ruiz** — NEXA M2
